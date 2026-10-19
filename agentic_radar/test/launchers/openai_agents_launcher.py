@@ -1,5 +1,7 @@
 import functools
 import sys
+from pathlib import Path
+from typing import Optional
 
 from ..agent_adapters import OpenAIAgentsAgent
 from ..test import Test
@@ -13,9 +15,15 @@ class OpenAIAgentsLauncher(BaseLauncher):
     """
 
     def __init__(
-        self, entrypoint_script: str, extra_args: list[str], tests: list[Test]
+        self,
+        entrypoint_script: str,
+        extra_args: list[str],
+        tests: list[Test],
+        output_format: Optional[str] = None,
+        output_path: Optional[Path] = None,
     ):
-        super().__init__(entrypoint_script, extra_args, tests)
+        super().__init__(entrypoint_script, extra_args, tests, output_format, output_path)
+
 
     def _patch_targets(self) -> None:
         try:

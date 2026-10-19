@@ -220,7 +220,37 @@ def test(
             envvar="AGENTIC_RADAR_TEST_CONFIG_FILE",
         ),
     ] = None,
+    output_format: Annotated[
+        str,
+        typer.Option(
+            "--format",
+            help="Output format for exporting test results. Use 'table' (default) for rich terminal output only, 'json' to also export a JSON file, or 'markdown' to also export a Markdown report.",
+            envvar="AGENTIC_RADAR_TEST_FORMAT",
+        ),
+    ] = "table",
+    output_path: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--output",
+            "-o",
+            help="Destination file path for the exported results (required when --format is 'json' or 'markdown').",
+            envvar="AGENTIC_RADAR_TEST_OUTPUT",
+        ),
+    ] = None,
 ):
+    # Validate export options
+    if output_format not in ("table", "json", "markdown"):
+        print(
+            f"Invalid --format value '{output_format}'. Choose one of: table, json, markdown."
+        )
+        raise typer.Exit(code=1)
+
+    if output_format != "table" and output_path is None:
+        print(
+            f"--output / -o is required when --format is '{output_format}'."
+        )
+        raise typer.Exit(code=1)
+
     split_args = shlex.split(entrypoint_script_with_args)
     entrypoint_script = split_args[0]
     extra_args = split_args[1:]
@@ -246,12 +276,20 @@ def test(
 
         from agentic_radar.test import OpenAIAgentsLauncher
 
-        launcher = OpenAIAgentsLauncher(entrypoint_script, extra_args, tests)
+        export_format = output_format if output_format != "table" else None
+        launcher = OpenAIAgentsLauncher(
+            entrypoint_script,
+            extra_args,
+            tests,
+            output_format=export_format,
+            output_path=output_path,
+        )
     else:
         print(f"Unsupported framework: {framework}")
         raise typer.Exit(code=1)
 
     launcher.launch()
+
 
 
 if __name__ == "__main__":

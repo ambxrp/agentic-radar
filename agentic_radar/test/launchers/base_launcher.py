@@ -2,8 +2,11 @@ import asyncio
 import runpy
 import sys
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Optional
 
 from ..agent import Agent
+from ..exporters import write_results
 from ..rich import display_test_results
 from ..test import Test
 
@@ -14,11 +17,18 @@ class BaseLauncher(ABC):
     """
 
     def __init__(
-        self, entrypoint_script: str, extra_args: list[str], tests: list[Test]
+        self,
+        entrypoint_script: str,
+        extra_args: list[str],
+        tests: list[Test],
+        output_format: Optional[str] = None,
+        output_path: Optional[Path] = None,
     ):
         self.entrypoint_script = entrypoint_script
         self.extra_args = extra_args
         self.tests = tests
+        self.output_format = output_format
+        self.output_path = output_path
         self._collected_agents: list[Agent] = []
 
     @abstractmethod
@@ -88,6 +98,10 @@ class BaseLauncher(ABC):
         print("[Launcher] All tests finished.")
         print("[Launcher] Displaying test results:")
         display_test_results(results)
+
+        if self.output_format and self.output_path:
+            write_results(results, self.output_format, self.output_path)
+
 
     def launch(self):
         self._patch_targets()

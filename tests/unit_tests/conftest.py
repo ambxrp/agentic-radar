@@ -23,33 +23,52 @@ def pytest_runtest_protocol(item, nextitem):
 
 def pytest_runtest_logreport(report):
     if report.when == "call":
-        meta = test_metadata.get(report.nodeid, {})
+        try:
+            meta = test_metadata.get(report.nodeid, {})
 
-        markers = meta.get("markers", [])
-        docstring = meta.get("docstring", "")
-        lineno = meta.get("lineno", 0)
-        framework = FRAMEWORK_NAME_MAPPING.get(report.nodeid.removeprefix("tests/unit_tests/").split("/")[0], "Unknown (error while mapping name)")
-        category = report.nodeid.split("unit_tests/")[-1].split("/")[1]
-        docstring = meta.get("docstring", "").replace("\n", "")
-        outcome = "Unknown"
-        url = report.nodeid.split("::")[0] + f"#L{lineno}"
+            markers = meta.get("markers", [])
+            docstring = meta.get("docstring", "")
+            lineno = meta.get("lineno", 0)
 
-        if "supported" in markers:
-            if report.outcome == "passed":
-                outcome = "Passed✅"
-            elif report.outcome == "failed":
-                outcome = "Failed❌"
-        elif "not_supported" in markers:
-            outcome = "Unsupported⬜"
-        
-        result = {
-            "docstring": docstring,
-            "outcome": outcome,
-            "url": url,
-            "category": category
-        }
-        
-        all_results[framework].append(result)
+            # Only process reports that match the expected unit_tests/<framework>/<category>/ depth.
+            relative_parts = report.nodeid.split("unit_tests/")
+            if len(relative_parts) < 2:
+                return
+            inner_parts = relative_parts[-1].split("/")
+            if len(inner_parts) < 2:
+                return
+
+            framework_key = inner_parts[0]
+            category = inner_parts[1]
+            framework = FRAMEWORK_NAME_MAPPING.get(
+                framework_key,
+                "Unknown (error while mapping name)",
+            )
+            # Safely handle None docstrings (e.g. class-based test methods without a docstring)
+            docstring = (docstring or "").replace("\n", "")
+            outcome = "Unknown"
+            url = report.nodeid.split("::")[0] + f"#L{lineno}"
+
+            if "supported" in markers:
+                if report.outcome == "passed":
+                    outcome = "Passed✅"
+                elif report.outcome == "failed":
+                    outcome = "Failed❌"
+            elif "not_supported" in markers:
+                outcome = "Unsupported⬜"
+
+            result = {
+                "docstring": docstring,
+                "outcome": outcome,
+                "url": url,
+                "category": category
+            }
+
+            all_results[framework].append(result)
+        except Exception:
+            # Silently skip reports that don't match the expected structure.
+            pass
+
 
 def pytest_sessionfinish(session, exitstatus):
     with open("test-report.md", "w", encoding="utf-8") as f:
